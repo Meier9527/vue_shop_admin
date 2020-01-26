@@ -30,7 +30,7 @@
             <el-switch v-model="scope.row.mg_state" @change="UserStateChange(scope.row)"></el-switch>
           </template>
         </el-table-column>
-        <el-table-column label="操作">
+        <el-table-column label="操作" width="200px">
           <template v-slot="scope">
             <el-tooltip effect="dark" content="修改" placement="top" :enterable="false">
               <el-button
@@ -41,10 +41,20 @@
               ></el-button>
             </el-tooltip>
             <el-tooltip effect="dark" content="删除" placement="top" :enterable="false">
-              <el-button size="mini" type="danger" @click="RemoveUser(scope.row.id)" icon="el-icon-delete"></el-button>
+              <el-button
+                size="mini"
+                type="danger"
+                @click="RemoveUser(scope.row.id)"
+                icon="el-icon-delete"
+              ></el-button>
             </el-tooltip>
             <el-tooltip effect="dark" content="分配角色" placement="top" :enterable="false">
-              <el-button size="mini" type="warning" icon="el-icon-user"></el-button>
+              <el-button
+                size="mini"
+                type="warning"
+                icon="el-icon-user"
+                @click="AllotRole(scope.row)"
+              ></el-button>
             </el-tooltip>
           </template>
         </el-table-column>
@@ -54,7 +64,7 @@
         @size-change="handleSizeChange"
         @current-change="handleCurrentChange"
         :current-page="queryInfo.pagenum"
-        :page-sizes="[1, 2, 5, 10]"
+        :page-sizes="[4, 7, 10]"
         :page-size="queryInfo.pagesize"
         layout="total, sizes, prev, pager, next, jumper"
         :total="total"
@@ -83,7 +93,12 @@
         <el-button type="primary" @click="addUser">确 定</el-button>
       </span>
     </el-dialog>
-    <el-dialog title="修改用户信息" @close="editUserFormClosed" :visible.sync="editUserdialogVisible" width="50%">
+    <el-dialog
+      title="修改用户信息"
+      @close="editUserFormClosed"
+      :visible.sync="editUserdialogVisible"
+      width="50%"
+    >
       <el-form ref="editUserRef" :rules="addFormRules" :model="editUserForm" label-width="70px">
         <el-form-item label="用户名">
           <el-input v-model="editUserForm.username" disabled></el-input>
@@ -98,6 +113,28 @@
       <span slot="footer" class="dialog-footer">
         <el-button @click="editUserdialogVisible = false">取 消</el-button>
         <el-button type="primary" @click="editUser">确 定</el-button>
+      </span>
+    </el-dialog>
+    <!-- 分配角色对话框 -->
+    <el-dialog title="提示" :visible.sync="AllotRoledialog" width="50%" @close="AllotRoledislogClosed">
+      <div>
+        <p>当前的用户：{{UserInfo.username}}</p>
+        <p>当前的角色：{{UserInfo.role_name}}</p>
+        <p>
+          分配新角色：
+          <el-select v-model="selectedRoleId" placeholder="请选择">
+            <el-option
+              v-for="item in roleslist"
+              :key="item.id"
+              :label="item.roleName"
+              :value="item.id"
+            ></el-option>
+          </el-select>
+        </p>
+      </div>
+      <span slot="footer" class="dialog-footer">
+        <el-button @click="AllotRoledialog = false">取 消</el-button>
+        <el-button type="primary" @click="SaveAllotRole">确 定</el-button>
       </span>
     </el-dialog>
   </div>
@@ -162,7 +199,14 @@ export default {
       // 控制修改用户对话框的显示与隐藏
       editUserdialogVisible: false,
       // 查询到的用户信息对象
-      editUserForm: {}
+      editUserForm: {},
+      // 分配角色对话框的显示与隐藏
+      AllotRoledialog: false,
+      // 需要被分配角色的用户信息
+      UserInfo: {},
+      // 角色列表
+      roleslist: {},
+      selectedRoleId: ''
     }
   },
   created () {
@@ -228,7 +272,9 @@ export default {
     },
     async editDialog (id) {
       const { data: res } = await this.$http.get('users/' + id)
-      if (res.meta.status !== 200) { return this.$message.error('获取用户数据失败') }
+      if (res.meta.status !== 200) {
+        return this.$message.error('获取用户数据失败')
+      }
       this.editUserForm = res.data
       this.editUserdialogVisible = true
     },
@@ -238,7 +284,10 @@ export default {
     editUser () {
       this.$refs.editUserRef.validate(async valid => {
         if (!valid) return false
-        const { data: res } = await this.$http.put('users/' + this.editUserForm.id, { email: this.editUserForm.email, mobile: this.editUserForm.mobile })
+        const { data: res } = await this.$http.put(
+          'users/' + this.editUserForm.id,
+          { email: this.editUserForm.email, mobile: this.editUserForm.mobile }
+        )
         if (res.meta.status !== 200) return this.$message.error('修改失败')
         this.$message.success('修改成功')
         this.getUsersList()
@@ -246,17 +295,44 @@ export default {
       })
     },
     async RemoveUser (id) {
-      const confirmres = await this.$confirm('此操作将永久删除该用户, 是否继续?', '提示', {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning'
-      }).catch(err => err)
+      const confirmres = await this.$confirm(
+        '此操作将永久删除该用户, 是否继续?',
+        '提示',
+        {
+          confirmButtonText: '确定',
+          cancelButtonText: '取消',
+          type: 'warning'
+        }
+      ).catch(err => err)
       // 如果返回值是confirm即提交，cancel即取消
       if (confirmres !== 'confirm') return this.$message.info('已取消删除操作')
       const { data: res } = await this.$http.delete('users/' + id)
       if (res.meta.status !== 200) return this.$message.error('删除用户失败')
       this.$message.success('删除用户成功')
       this.getUsersList()
+    },
+    async AllotRole (UserInfo) {
+      this.UserInfo = UserInfo
+      // 获取所有角色列表
+      const { data: res } = await this.$http.get('roles')
+      if (res.meta.status !== 200) { return this.$message.error('获取角色信息失败') }
+      this.roleslist = res.data
+
+      this.AllotRoledialog = true
+    },
+    async SaveAllotRole () {
+      if (!this.selectedRoleId) {
+        return this.$message.error('请选择！')
+      }
+      const { data: res } = await this.$http.put(`users/${this.UserInfo.id}/role`, { rid: this.selectedRoleId })
+      if (res.meta.status !== 200) return this.$message.error('分配角色失败！')
+      this.$message.success('分配角色成功')
+      this.getUsersList()
+      this.AllotRoledialog = false
+    },
+    AllotRoledislogClosed () {
+      this.UserInfo = {}
+      this.selectedRoleId = ''
     }
   }
 }
