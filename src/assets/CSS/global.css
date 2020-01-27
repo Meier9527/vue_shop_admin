@@ -27,3 +27,6 @@ html,body,#app{
 .border-bottom{
 	border-bottom: 1px solid #eee;
 }
+div.el-popper.el-cascader__dropdown,.el-cascader-panel{
+    max-height: 200px!important;
+}
