@@ -3,6 +3,13 @@ import App from './App.vue'
 import router from './router'
 import './plugins/element.js'
 import TreeTable from 'vue-table-with-tree-grid'
+// 导入富文本编辑器
+import VueQuillEditor from 'vue-quill-editor'
+// require styles
+import 'quill/dist/quill.core.css'
+import 'quill/dist/quill.snow.css'
+import 'quill/dist/quill.bubble.css'
+
 // 导入全局样式表
 import './assets/CSS/global.css'
 
@@ -19,6 +26,18 @@ Vue.prototype.$http = axios
 Vue.config.productionTip = false
 
 Vue.component('tree-table', TreeTable)
+// 将富文本注册为全局可用的组件
+Vue.use(VueQuillEditor)
+Vue.filter('dataFormat', function (originVal) {
+  const dt = new Date(originVal)
+  const year = dt.getFullYear()
+  const month = (dt.getMonth() + 1 + '').padStart(2, '0')
+  const day = (dt.getDate() + '').padStart(2, '0')
+  const hours = (dt.getHours() + '').padStart(2, '0')
+  const min = (dt.getMinutes() + '').padStart(2, '0')
+  const ss = (dt.getSeconds() + '').padStart(2, '0')
+  return `${year}-${month}-${day} ${hours}:${min}:${ss}`
+})
 
 new Vue({
   router,

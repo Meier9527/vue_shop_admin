@@ -30,3 +30,12 @@ html,body,#app{
 div.el-popper.el-cascader__dropdown,.el-cascader-panel{
     max-height: 200px!important;
 }
+.el-steps{
+	margin: 15px 0px;
+}
+.el-step__title{
+	font-size: 14px;
+}
+.ql-editor{
+	min-height: 300px;
+}
